@@ -12,11 +12,7 @@ finished reading something, a rating, a project name. Zotero stores it happily
 but never shows it. Extra Columns makes those values visible and sortable
 alongside title, creator and date.
 
-> **Screenshot to follow** — the item list with `Finished` and `Rating`
-> columns alongside the standard ones. Drop the image at `doc/screenshot.png`
-> and uncomment the line below.
-
-<!-- ![The item list showing Finished and Rating columns](doc/screenshot.png) -->
+![The item list showing Finished and Rating columns](doc/screenshot.png)
 
 ## Installing
 
@@ -80,17 +76,32 @@ while a date or number column is the one you are sorting by, Zotero's
 type-to-jump matches that hidden key rather than the displayed value. Text
 columns are unaffected.
 
-## A caveat about CSL variables
+## A caveat about keys Zotero uses itself
 
-Zotero reads some keys out of Extra itself, using them for citations — CSL
-variables such as `original-date` or `number-of-pages`, Zotero's own item field
-names, and creator types. Those keys are _not_ inert data.
+Zotero does not treat Extra as inert. Some keys it claims for itself, in two
+different ways:
 
-You can still make a column for one of them, and it will show what is in Extra.
-But editing that value changes your citations too. The settings pane warns you
-when a key you have entered is one Zotero interprets, so the choice is a
-deliberate one. The warning is generated from the running Zotero's own schema,
-so it stays accurate as Zotero changes.
+- **CSL variables** — `original-date`, `number-of-pages`, `status` and the
+  rest. When Zotero builds a citation it hands these to your citation style,
+  whatever the item type, so the value can appear in citations and
+  bibliographies.
+- **Zotero's own field and creator names** — `call number`, `cast member` and
+  so on. Zotero matches these when it reads Extra and may take the value out of
+  Extra altogether, storing it as that field instead.
+
+You can still make a column for such a key, and it will show what is in Extra.
+The settings pane simply tells you which of the two applies, so the choice is a
+deliberate one. Citation warnings are highlighted, because those are the ones
+with consequences outside Zotero.
+
+A key can be both. `status` is a CSL variable _and_ a Zotero field on patent
+and standard items, so it gets the citation warning, the more serious of the
+two.
+
+If you only want somewhere private to keep a note, pick a key Zotero does not
+claim — `reading status` rather than `status`, for instance. Both lists are
+read from the running Zotero's own schema, so they stay accurate as Zotero
+changes.
 
 ## Roadmap
 
