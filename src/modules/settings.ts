@@ -10,7 +10,12 @@ import {
   createDefinition,
   newDefinitionID,
 } from "./definitions";
-import { collectReservedKeys, findReservedConflict } from "./reserved";
+import {
+  ReservedKeys,
+  ReservedKind,
+  collectReservedKeys,
+  findReservedConflict,
+} from "./reserved";
 import { getDefinitions, setDefinitions } from "./store";
 import { refreshColumns } from "./columns";
 import { getString } from "../utils/locale";
@@ -25,7 +30,7 @@ let paneID: string | undefined;
  */
 let working: ColumnDefinition[] = [];
 
-let reservedKeys: Set<string> = new Set();
+let reservedKeys: ReservedKeys = { csl: new Set(), field: new Set() };
 
 export async function registerSettingsPane(): Promise<void> {
   paneID = await Zotero.PreferencePanes.register({
@@ -33,6 +38,7 @@ export async function registerSettingsPane(): Promise<void> {
     src: `${rootURI}content/preferences.xhtml`,
     label: getString("prefs-title"),
     image: `chrome://${addon.data.config.addonRef}/content/icons/favicon.png`,
+    stylesheets: [`${rootURI}content/preferences.css`],
   });
 }
 
@@ -205,8 +211,10 @@ function save(doc: Document): void {
 }
 
 /**
- * Warn about keys Zotero interprets in Extra itself, since a column on such a
- * key is showing a value that also feeds citations.
+ * Warn about keys Zotero interprets in Extra itself. The two risks are
+ * different, so they get different wording: a CSL variable reaches the
+ * citation processor, whereas one of Zotero's own field names can be taken out
+ * of Extra and stored as that field.
  */
 function renderWarnings(doc: Document): void {
   const container = doc.getElementById(
@@ -215,20 +223,29 @@ function renderWarnings(doc: Document): void {
   if (!container) {
     return;
   }
-  const conflicts = new Set<string>();
+
+  const conflicts = new Map<string, ReservedKind>();
   for (const definition of working) {
     const conflict = findReservedConflict(definition.key, reservedKeys);
     if (conflict) {
-      conflicts.add(conflict);
+      conflicts.set(conflict.key, conflict.kind);
     }
   }
+
+  // Citation warnings first: they are the ones with consequences outside
+  // Zotero.
+  const ordered = [...conflicts].sort(
+    ([, a], [, b]) => Number(a !== "csl") - Number(b !== "csl"),
+  );
+
   container.replaceChildren(
-    ...[...conflicts].map((key) => {
+    ...ordered.map(([key, kind]) => {
       const warning = create(doc, "p");
-      warning.className = "extra-columns-warning";
-      warning.textContent = getString("pref-warning-reserved", {
-        args: { key },
-      });
+      warning.className = `extra-columns-warning extra-columns-warning-${kind}`;
+      warning.textContent = getString(
+        kind === "csl" ? "pref-warning-csl" : "pref-warning-field",
+        { args: { key } },
+      );
       return warning;
     }),
   );

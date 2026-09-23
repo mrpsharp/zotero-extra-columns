@@ -9,4 +9,5 @@ pref-type-number = Number
 
 pref-remove = Remove
 
-pref-warning-reserved = Zotero reads “{ $key }” from Extra itself, so a column on this key shows a value that may also affect your citations.
+pref-warning-csl = Zotero passes “{ $key }” to your citation style, so this value can appear in citations and bibliographies.
+pref-warning-field = Zotero recognises “{ $key }” as one of its own fields, so it may take this value out of Extra and store it as that field instead.

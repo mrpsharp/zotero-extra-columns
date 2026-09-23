@@ -17,5 +17,6 @@ export type FluentMessageId =
   | 'pref-type-date'
   | 'pref-type-number'
   | 'pref-type-text'
-  | 'pref-warning-reserved'
+  | 'pref-warning-csl'
+  | 'pref-warning-field'
   | 'prefs-title';

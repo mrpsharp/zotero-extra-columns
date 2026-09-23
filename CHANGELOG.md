@@ -21,8 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Type-aware sorting: dates chronologically (including the partial dates
   `YYYY-MM` and `YYYY`), numbers numerically, and text ignoring case. Values
   that cannot be read as a date or number sort after those that can.
-- A warning in the settings pane when a key is one Zotero itself interprets in
-  Extra, such as a CSL variable, since those values feed citations.
+- Warnings in the settings pane for keys Zotero itself interprets in Extra,
+  distinguishing CSL variables, which reach the citation processor, from
+  Zotero's own field and creator names, which it may take out of Extra and
+  store as that field.
 - British English interface text, localised with Fluent.
 
 [Unreleased]: https://github.com/mrpsharp/zotero-extra-columns/compare/v0.1.0...HEAD
