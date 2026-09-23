@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The settings pane's placeholders no longer suggest a particular use. They
+  name the field instead of showing a worked example, and the empty-state line
+  follows suit.
+
 ## [0.1.0] - 2026-09-23
 
 ### Added

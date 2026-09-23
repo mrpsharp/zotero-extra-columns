@@ -1,7 +1,7 @@
 prefs-title = Extra Columns
 
-pref-placeholder-label = Finished
-pref-placeholder-key = finished
+pref-placeholder-label = Column header
+pref-placeholder-key = Extra key
 
 pref-type-text = Text
 pref-type-date = Date

@@ -6,7 +6,7 @@ pref-heading-label = Column header
 pref-heading-key = Extra key
 pref-heading-type = Type
 
-pref-empty = No columns yet. Add one for a key you use in Extra — for example the header “Finished” for the key “finished”.
+pref-empty = No columns yet. Add one for a key you use in Extra.
 
 pref-add =
     .label = Add column
