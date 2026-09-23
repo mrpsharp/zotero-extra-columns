@@ -7,11 +7,8 @@
 A [Zotero](https://www.zotero.org) plugin that shows values stored in an item's
 **Extra** field as columns in the item list.
 
-Many people keep custom data in Extra as `key: value` lines — a date you
-finished reading something, a rating, a project name. Zotero stores it happily
-but never shows it. Extra Columns makes those values visible and sortable
-alongside title, creator and date.
-
+This allows you to keep custom data in Extra as `key: value` lines. This could be a date you finished reading something, a rating, a project name. Extra Columns makes those values visible and sortable
+alongside title etc
 ![The item list showing Finished and Rating columns](doc/screenshot.png)
 
 ## Installing
@@ -143,6 +140,9 @@ git push --follow-tags
 ## Credits
 
 Built on [windingwind/zotero-plugin-template](https://github.com/windingwind/zotero-plugin-template).
+
+Written with the help of [Claude Code](https://claude.com/claude-code); every
+change was reviewed and tested by me before release, and I maintain it.
 
 ## Licence
 
