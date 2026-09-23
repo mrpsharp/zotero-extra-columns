@@ -1,7 +1,7 @@
 {
   "name": "zotero-extra-columns",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Show values stored in an item's Extra field as sortable columns in the Zotero item list.",
   "config": {
     "addonName": "Extra Columns",
