@@ -1,2 +1,2 @@
-pref("enable", true);
-pref("input", "This is input");
+// All column definitions live in one JSON preference.
+pref("columns", "[]");

@@ -1,24 +1,24 @@
 {
-  "name": "zotero-plugin-template",
+  "name": "zotero-extra-columns",
   "type": "module",
-  "version": "3.1.0",
-  "description": "Zotero Plugin Template",
+  "version": "0.1.0",
+  "description": "Show values stored in an item's Extra field as sortable columns in the Zotero item list.",
   "config": {
-    "addonName": "Zotero Plugin Template",
-    "addonID": "addontemplate@euclpts.com",
-    "addonRef": "addontemplate",
-    "addonInstance": "AddonTemplate",
-    "prefsPrefix": "extensions.zotero.addontemplate"
+    "addonName": "Extra Columns",
+    "addonID": "extra-columns@petersharp.org",
+    "addonRef": "extra-columns",
+    "addonInstance": "ExtraColumns",
+    "prefsPrefix": "extensions.zotero.extra-columns"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/windingwind/zotero-plugin-template.git"
+    "url": "git+https://github.com/mrpsharp/zotero-extra-columns.git"
   },
-  "author": "windingwind",
+  "author": "Peter Sharp",
   "bugs": {
-    "url": "https://github.com/windingwind/zotero-plugin-template/issues"
+    "url": "https://github.com/mrpsharp/zotero-extra-columns/issues"
   },
-  "homepage": "https://github.com/windingwind/zotero-plugin-template#readme",
+  "homepage": "https://github.com/mrpsharp/zotero-extra-columns#readme",
   "license": "AGPL-3.0-or-later",
   "scripts": {
     "start": "zotero-plugin serve",
@@ -26,7 +26,9 @@
     "lint:check": "prettier --check . && eslint .",
     "lint:fix": "prettier --write . && eslint . --fix",
     "release": "zotero-plugin release",
-    "test": "zotero-plugin test",
+    "test": "npm run test:unit",
+    "test:unit": "mocha --import=tsx \"test/unit/**/*.test.ts\"",
+    "test:zotero": "zotero-plugin test",
     "update-deps": "npm update --save"
   },
   "dependencies": {
@@ -41,6 +43,7 @@
     "eslint": "^9.39.2",
     "mocha": "^11.7.5",
     "prettier": "^3.7.4",
+    "tsx": "^4.20.3",
     "typescript": "^5.9.3",
     "zotero-plugin-scaffold": "^0.8.2",
     "zotero-types": "^4.1.0-beta.4"
