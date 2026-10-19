@@ -41,6 +41,38 @@ export default defineConfig({
 
   test: {
     waitForPlugin: `() => Zotero.${pkg.config.addonInstance}.data.initialized`,
+    // Column definitions for the in-Zotero tests (see test/columns.test.ts).
+    // The first is in the format stored before field columns existed, so that
+    // the migration runs at startup.
+    prefs: {
+      [`${pkg.config.prefsPrefix}.columns`]: JSON.stringify([
+        { id: "finished", label: "Finished", key: "finished", type: "date" },
+        {
+          id: "origdate",
+          label: "",
+          source: "field",
+          field: "originalDate",
+          fallbackKey: "original-date",
+          type: "date",
+        },
+        {
+          id: "origonly",
+          label: "Original Date (no fallback)",
+          source: "field",
+          field: "originalDate",
+          type: "date",
+        },
+        { id: "doi", label: "", source: "field", field: "DOI", type: "text" },
+        {
+          id: "gone",
+          label: "Gone",
+          source: "field",
+          field: "noSuchField",
+          fallbackKey: "gone",
+          type: "text",
+        },
+      ]),
+    },
   },
 
   // If you need to see a more detailed log, uncomment the following line:

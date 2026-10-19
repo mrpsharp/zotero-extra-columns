@@ -5,6 +5,7 @@ import {
   registerSettingsPane,
   unregisterSettingsPane,
 } from "./modules/settings";
+import { migrateDefinitions } from "./modules/store";
 
 async function onStartup() {
   await Promise.all([
@@ -15,6 +16,7 @@ async function onStartup() {
 
   initLocale();
 
+  migrateDefinitions();
   await registerSettingsPane();
   await refreshColumns();
 

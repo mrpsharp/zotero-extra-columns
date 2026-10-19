@@ -1,7 +1,8 @@
 /**
  * The Zotero settings pane: a list of column definitions the user can add to,
- * edit and remove. Changes are saved as they are made and the item tree
- * columns are re-registered, so no restart is needed.
+ * edit and remove. Each column shows either an Extra key or one of Zotero's
+ * own fields. Changes are saved as they are made and the item tree columns are
+ * re-registered, so no restart is needed.
  */
 
 import { COLUMN_TYPES, ColumnType } from "./extra";
@@ -10,6 +11,12 @@ import {
   createDefinition,
   newDefinitionID,
 } from "./definitions";
+import {
+  FieldOption,
+  collectAvailableFields,
+  fieldLabel,
+  suggestedType,
+} from "./fields";
 import {
   ReservedKeys,
   ReservedKind,
@@ -22,6 +29,9 @@ import { getString } from "../utils/locale";
 
 const HTML_NS = "http://www.w3.org/1999/xhtml";
 
+/** The source picker's value for an Extra column; field names are never empty. */
+const EXTRA_SOURCE = "";
+
 let paneID: string | undefined;
 
 /**
@@ -31,6 +41,9 @@ let paneID: string | undefined;
 let working: ColumnDefinition[] = [];
 
 let reservedKeys: ReservedKeys = { csl: new Set(), field: new Set() };
+
+/** Zotero's fields that have no column of their own, sorted by label. */
+let availableFields: FieldOption[] = [];
 
 export async function registerSettingsPane(): Promise<void> {
   paneID = await Zotero.PreferencePanes.register({
@@ -54,6 +67,7 @@ export function onSettingsLoad(win: Window): void {
   const doc = win.document;
   working = getDefinitions();
   reservedKeys = collectReservedKeys();
+  availableFields = collectAvailableFields();
 
   doc.getElementById(elementID("add"))?.addEventListener("command", () => {
     working.push(createDefinition());
@@ -82,26 +96,49 @@ function renderRows(doc: Document): void {
 
 function buildRow(doc: Document, definition: ColumnDefinition): Element {
   const row = create(doc, "tr");
+  const isField = definition.source === "field";
 
+  // An empty header falls back to the field's label, so show that.
   const label = textInput(
     doc,
     definition.label,
-    getString("pref-placeholder-label"),
+    isField
+      ? fieldLabel(definition.field)
+      : getString("pref-placeholder-label"),
     (value) => {
       definition.label = value;
     },
   );
-  const key = textInput(
-    doc,
-    definition.key,
-    getString("pref-placeholder-key"),
-    (value) => {
-      definition.key = value;
-    },
-  );
+  // An Extra column needs its key; a field column may name a fallback key.
+  const key = isField
+    ? textInput(
+        doc,
+        definition.fallbackKey,
+        getString("pref-placeholder-fallback"),
+        (value) => {
+          definition.fallbackKey = value;
+        },
+      )
+    : textInput(
+        doc,
+        definition.key,
+        getString("pref-placeholder-key"),
+        (value) => {
+          definition.key = value;
+        },
+      );
+
+  const source = sourceSelect(doc, definition, () => {
+    // The key box and type change with the source, so rebuild the row.
+    const replacement = buildRow(doc, definition);
+    row.replaceWith(replacement);
+    replacement.querySelector("select")?.focus();
+    save(doc);
+  });
 
   row.append(
     cell(doc, label),
+    cell(doc, source),
     cell(doc, key),
     cell(
       doc,
@@ -151,6 +188,78 @@ function textInput(
   return input;
 }
 
+/**
+ * Choose between an Extra key and one of Zotero's fields, listed by their
+ * labels. Choosing a field sets the type to suit it.
+ */
+function sourceSelect(
+  doc: Document,
+  definition: ColumnDefinition,
+  onChange: () => void,
+): Element {
+  const select = create(doc, "select") as HTMLSelectElement;
+  select.append(
+    option(
+      doc,
+      EXTRA_SOURCE,
+      getString("pref-source-extra"),
+      definition.source === "extra",
+    ),
+  );
+
+  // A field configured earlier may no longer be on offer, if Zotero has since
+  // given it a column of its own; keep it selectable so the row still reads
+  // correctly.
+  const fields = [...availableFields];
+  if (
+    definition.source === "field" &&
+    !fields.some(({ name }) => name === definition.field)
+  ) {
+    fields.push({
+      name: definition.field,
+      label: fieldLabel(definition.field),
+    });
+  }
+  const group = create(doc, "optgroup") as HTMLOptGroupElement;
+  group.label = getString("pref-source-fields");
+  group.append(
+    ...fields.map(({ name, label }) =>
+      option(
+        doc,
+        name,
+        label,
+        definition.source === "field" && name === definition.field,
+      ),
+    ),
+  );
+  select.append(group);
+
+  select.addEventListener("change", () => {
+    if (select.value === EXTRA_SOURCE) {
+      definition.source = "extra";
+    } else {
+      definition.source = "field";
+      definition.field = select.value;
+      definition.type = suggestedType(select.value);
+    }
+    onChange();
+  });
+  return select;
+}
+
+function option(
+  doc: Document,
+  value: string,
+  label: string,
+  selected: boolean,
+): Element {
+  const element = create(doc, "option") as HTMLOptionElement;
+  element.value = value;
+  element.textContent = label;
+  element.selected = selected;
+  return element;
+}
+
 function typeSelect(
   doc: Document,
   definition: ColumnDefinition,
@@ -158,11 +267,7 @@ function typeSelect(
 ): Element {
   const select = create(doc, "select") as HTMLSelectElement;
   for (const type of COLUMN_TYPES) {
-    const option = create(doc, "option") as HTMLOptionElement;
-    option.value = type;
-    option.textContent = typeLabel(type);
-    option.selected = type === definition.type;
-    select.append(option);
+    select.append(option(doc, type, typeLabel(type), type === definition.type));
   }
   select.addEventListener("change", () => {
     definition.type = select.value as ColumnType;
@@ -215,6 +320,10 @@ function save(doc: Document): void {
  * different, so they get different wording: a CSL variable reaches the
  * citation processor, whereas one of Zotero's own field names can be taken out
  * of Extra and stored as that field.
+ *
+ * A field column's fallback key is not checked: it is usually Zotero's own
+ * key for that field (`original-date`, say), chosen precisely because Zotero
+ * uses it.
  */
 function renderWarnings(doc: Document): void {
   const container = doc.getElementById(
@@ -226,6 +335,9 @@ function renderWarnings(doc: Document): void {
 
   const conflicts = new Map<string, ReservedKind>();
   for (const definition of working) {
+    if (definition.source !== "extra") {
+      continue;
+    }
     const conflict = findReservedConflict(definition.key, reservedKeys);
     if (conflict) {
       conflicts.set(conflict.key, conflict.kind);

@@ -2,6 +2,10 @@ prefs-title = Extra Columns
 
 pref-placeholder-label = Column header
 pref-placeholder-key = Extra key
+pref-placeholder-fallback = Fallback Extra key (optional)
+
+pref-source-extra = Extra key
+pref-source-fields = Zotero fields
 
 pref-type-text = Text
 pref-type-date = Date

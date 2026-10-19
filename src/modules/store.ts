@@ -6,6 +6,7 @@
 
 import {
   ColumnDefinition,
+  needsMigration,
   parseDefinitions,
   serialiseDefinitions,
 } from "./definitions";
@@ -17,4 +18,16 @@ export function getDefinitions(): ColumnDefinition[] {
 
 export function setDefinitions(definitions: readonly ColumnDefinition[]): void {
   setPref("columns", serialiseDefinitions(definitions));
+}
+
+/**
+ * Rewrite definitions stored before field columns existed, so that each one
+ * names its source. Identifiers are kept, so the columns' widths and positions
+ * are unaffected.
+ */
+export function migrateDefinitions(): void {
+  const stored = getPref("columns") ?? "[]";
+  if (needsMigration(stored)) {
+    setDefinitions(parseDefinitions(stored));
+  }
 }

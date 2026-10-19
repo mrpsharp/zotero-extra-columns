@@ -21,11 +21,28 @@ export const COLUMN_TYPES: readonly ColumnType[] = ["text", "date", "number"];
  */
 export const SORT_SEPARATOR = "\u001F";
 
+/*
+ * Zotero compares those strings with its locale collation, which by default
+ * (the `naturalSorting` preference) compares runs of digits by their numeric
+ * value, and which ignores control characters such as the separator. Sort
+ * keys are built to survive that:
+ *
+ * - The ranks are letters, not digits, so that a rank is never read as part
+ *   of a number.
+ * - Every key's digits have a fixed width, so numeric and character order
+ *   agree.
+ * - Every key ends in punctuation the collation does not ignore, so that a
+ *   display value starting with digits cannot run on into the key's digits.
+ */
+
 /** Sort rank for values that could be interpreted as the column's type. */
-const RANK_SORTABLE = "0";
+const RANK_SORTABLE = "a";
 
 /** Sort rank for values that could not, so that they sort after the rest. */
-const RANK_UNSORTABLE = "1";
+const RANK_UNSORTABLE = "b";
+
+/** Closes a sort key; see above. */
+const KEY_END = "|";
 
 /** Widest integer part we can pad to without losing double precision. */
 const NUMBER_LIMIT = 1e9;
@@ -33,6 +50,8 @@ const NUMBER_INTEGER_DIGITS = 10;
 const NUMBER_FRACTION_DIGITS = 6;
 
 const ISO_DATE = /^(\d{4})(?:-(\d{2})(?:-(\d{2})(?:[T ].*)?)?)?$/;
+
+const SQL_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 const NUMERIC = /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 
@@ -86,13 +105,38 @@ export function getExtraValue(extra: string, key: string): string {
 export function dateSortKey(value: string): string {
   const match = ISO_DATE.exec(value.trim());
   if (!match) {
-    return RANK_UNSORTABLE + value.trim().toLowerCase();
+    return RANK_UNSORTABLE + value.trim().toLowerCase() + KEY_END;
   }
   const [, year, month = "00", day = "00"] = match;
   if (Number(month) > 12 || Number(day) > 31) {
-    return RANK_UNSORTABLE + value.trim().toLowerCase();
+    return RANK_UNSORTABLE + value.trim().toLowerCase() + KEY_END;
   }
-  return RANK_SORTABLE + year + month + day;
+  return RANK_SORTABLE + year + month + day + KEY_END;
+}
+
+/**
+ * Sort key for a date Zotero has already parsed, given as the SQL date
+ * (`YYYY-MM-DD`, with `00` for unknown parts) that `Zotero.Date.multipartToSQL`
+ * returns. A partial date sorts before any more precise date within it, as
+ * with `dateSortKey`. A date with no year (`0000-00-00`, which is what Zotero
+ * returns for text it cannot read) keeps the displayed text but is ranked
+ * after every date.
+ */
+export function sqlDateSortKey(sql: string, display: string): string {
+  const match = SQL_DATE.exec(sql);
+  if (!match || match[1] === "0000") {
+    return RANK_UNSORTABLE + display.trim().toLowerCase() + KEY_END;
+  }
+  return RANK_SORTABLE + match[1] + match[2] + match[3] + KEY_END;
+}
+
+/**
+ * Build a date cell from the text to display and the SQL date to sort it by.
+ * Used for field columns, whose dates are read with Zotero's own parser.
+ */
+export function buildDateCell(display: string, sql: string): string {
+  const shown = display.trim();
+  return shown ? sqlDateSortKey(sql, shown) + SORT_SEPARATOR + shown : "";
 }
 
 /**
@@ -107,13 +151,16 @@ export function numberSortKey(value: string): string {
   const trimmed = value.trim();
   const parsed = NUMERIC.test(trimmed) ? Number(trimmed) : Number.NaN;
   if (!Number.isFinite(parsed) || Math.abs(parsed) >= NUMBER_LIMIT) {
-    return RANK_UNSORTABLE + trimmed.toLowerCase();
+    return RANK_UNSORTABLE + trimmed.toLowerCase() + KEY_END;
   }
   const [integer, fraction] = (parsed + NUMBER_LIMIT)
     .toFixed(NUMBER_FRACTION_DIGITS)
     .split(".");
   return (
-    RANK_SORTABLE + integer.padStart(NUMBER_INTEGER_DIGITS, "0") + fraction
+    RANK_SORTABLE +
+    integer.padStart(NUMBER_INTEGER_DIGITS, "0") +
+    fraction +
+    KEY_END
   );
 }
 

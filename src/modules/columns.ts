@@ -6,7 +6,13 @@
  */
 
 import { ColumnDefinition, definitionLabel } from "./definitions";
-import { buildCellValue, cellDisplayValue, getExtraValue } from "./extra";
+import {
+  buildCellValue,
+  buildDateCell,
+  cellDisplayValue,
+  getExtraValue,
+} from "./extra";
+import { fieldLabel, isKnownField, isMultipartDateField } from "./fields";
 import { getDefinitions } from "./store";
 
 interface RegisteredColumn {
@@ -55,14 +61,12 @@ export async function unregisterColumns(): Promise<void> {
 }
 
 async function registerColumn(definition: ColumnDefinition): Promise<void> {
-  const { key, type } = definition;
   try {
     const dataKey = await register({
       dataKey: `col-${definition.id}`,
-      label: definitionLabel(definition),
+      label: definitionLabel(definition, fieldLabel),
       pluginID: addon.data.config.addonID,
-      dataProvider: (item: Zotero.Item) =>
-        buildCellValue(getExtraValue(readExtra(item), key), type),
+      dataProvider: cellProvider(definition),
       renderCell: (
         _index: number,
         data: string,
@@ -104,10 +108,83 @@ async function unregisterColumn(id: string): Promise<void> {
 /** Everything about a definition that affects how its column is registered. */
 function signatureOf(definition: ColumnDefinition): string {
   return JSON.stringify([
-    definitionLabel(definition),
+    definitionLabel(definition, fieldLabel),
+    definition.source,
     definition.key,
+    definition.field,
+    definition.fallbackKey,
     definition.type,
   ]);
+}
+
+/** Build the function that gives the item tree a cell's value for an item. */
+function cellProvider(
+  definition: ColumnDefinition,
+): (item: Zotero.Item) => string {
+  const { key, type } = definition;
+  return definition.source === "field"
+    ? fieldCellProvider(definition)
+    : (item) => buildCellValue(getExtraValue(readExtra(item), key), type);
+}
+
+/**
+ * A field column shows the field as entered, or else the fallback Extra key.
+ * Date columns sort on the date Zotero's own parser reads from that text.
+ */
+function fieldCellProvider(
+  definition: ColumnDefinition,
+): (item: Zotero.Item) => string {
+  const { field, fallbackKey, type } = definition;
+  // Checked once, so that a field this Zotero does not know (one removed in a
+  // later version, say) never reaches getField, which would log about it.
+  const known = isKnownField(field);
+  const multipart = isMultipartDateField(field);
+
+  return (item) => {
+    let display = known ? readField(item, field) : "";
+    let sql = "";
+    if (display && multipart && Zotero.Date.isMultipart(display)) {
+      sql = Zotero.Date.multipartToSQL(display);
+      display = Zotero.Date.multipartToStr(display);
+    }
+    if (!display.trim() && fallbackKey) {
+      display = getExtraValue(readExtra(item), fallbackKey);
+      sql = "";
+    }
+    if (type !== "date") {
+      return buildCellValue(display, type);
+    }
+    if (display.trim() && !sql) {
+      sql = parseDate(display);
+    }
+    return buildDateCell(display, sql);
+  };
+}
+
+/**
+ * Read a date as entered with Zotero's own parser, returning the SQL date
+ * (`YYYY-MM-DD`, with `00` for unknown parts) or "" if it cannot be read.
+ */
+function parseDate(text: string): string {
+  try {
+    return Zotero.Date.multipartToSQL(Zotero.Date.strToMultipart(text.trim()));
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Read a field, following base-field mappings as Zotero's own columns do (so
+ * Original Date shows a patent's Priority Date). Unformatted, so that a
+ * multipart date keeps its SQL part for sorting. A field that does not apply
+ * to the item's type reads as empty.
+ */
+function readField(item: Zotero.Item, field: string): string {
+  try {
+    return String(item.getField(field as any, true, true) ?? "");
+  } catch {
+    return "";
+  }
 }
 
 /** Read an item's Extra field, tolerating item types that have none. */
