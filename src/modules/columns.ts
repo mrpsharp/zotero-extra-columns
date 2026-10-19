@@ -53,6 +53,67 @@ export async function refreshColumns(): Promise<void> {
   }
 }
 
+let observerID: string | undefined;
+
+/**
+ * Keep the item list sorted when one of our columns is the sort column.
+ *
+ * Registering a column makes Zotero rebuild the item tree's columns and
+ * refresh its rows, but that refresh only sorts rows it adds, not the ones
+ * already listed. At startup the list is loaded, and sorted by the first
+ * visible column, before our columns exist; once they are registered the sort
+ * indicator moves to the saved sort column but the rows stay in the old order.
+ * So after each such refresh, sort the list again if it is sorted by one of
+ * ours.
+ *
+ * The item tree observes these notifications at priority 50, and the notifier
+ * waits for each observer in turn, so a later priority runs once the item
+ * tree has finished rebuilding.
+ */
+export function observeColumnRefreshes(): void {
+  if (observerID) {
+    return;
+  }
+  observerID = Zotero.Notifier.registerObserver(
+    {
+      notify: async (action: string, type: string) => {
+        if (type === "itemtree" && action === "refresh") {
+          await resortItemLists();
+        }
+      },
+    },
+    ["itemtree"],
+    `${addon.data.config.addonRef}-columns`,
+    100,
+  );
+}
+
+export function unobserveColumnRefreshes(): void {
+  if (observerID) {
+    Zotero.Notifier.unregisterObserver(observerID);
+    observerID = undefined;
+  }
+}
+
+/** Whether a data key belongs to one of the columns this plugin registered. */
+export function isOwnColumn(dataKey: string): boolean {
+  return [...registered.values()].some((column) => column.dataKey === dataKey);
+}
+
+async function resortItemLists(): Promise<void> {
+  for (const win of Zotero.getMainWindows()) {
+    // The item tree is not covered by zotero-types.
+    const itemsView = (win as any).ZoteroPane?.itemsView;
+    try {
+      if (itemsView && isOwnColumn(itemsView.getSortField())) {
+        await itemsView.sort();
+      }
+    } catch (error) {
+      ztoolkit.log("Could not sort the item list", error);
+    }
+  }
+}
+
 /** Remove every column this plugin has registered. */
 export async function unregisterColumns(): Promise<void> {
   for (const id of [...registered.keys()]) {

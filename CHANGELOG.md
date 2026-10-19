@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- After a restart, an item list sorted by one of the plugin's columns showed
+  that column as sorted but listed the items in title order. Zotero loads and
+  sorts the list before plugin columns exist, and does not re-sort existing
+  rows when they appear, so the plugin now sorts the list again once its
+  columns are registered, and whenever they change.
 - Values that cannot be read as a date or a number now sort after those that
   can, as documented. With Zotero's natural sorting (on by default) they sorted
   first, and a value beginning with digits could sort out of place.

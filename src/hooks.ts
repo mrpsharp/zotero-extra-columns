@@ -1,5 +1,10 @@
 import { initLocale } from "./utils/locale";
-import { refreshColumns, unregisterColumns } from "./modules/columns";
+import {
+  observeColumnRefreshes,
+  refreshColumns,
+  unobserveColumnRefreshes,
+  unregisterColumns,
+} from "./modules/columns";
 import {
   onSettingsLoad,
   registerSettingsPane,
@@ -18,6 +23,7 @@ async function onStartup() {
 
   migrateDefinitions();
   await registerSettingsPane();
+  observeColumnRefreshes();
   await refreshColumns();
 
   // Mark initialized as true to confirm plugin loading status
@@ -33,6 +39,7 @@ async function onMainWindowUnload(_win: Window): Promise<void> {}
 
 function onShutdown(): void {
   unregisterSettingsPane();
+  unobserveColumnRefreshes();
   void unregisterColumns();
   ztoolkit.unregisterAll();
   // Remove addon object

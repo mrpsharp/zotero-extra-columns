@@ -241,6 +241,80 @@ describe("Field columns", function () {
   });
 
   describe("sorting", function () {
+    /** Poll until `check` passes, or fail after `timeout` ms. */
+    async function waitFor(check: () => boolean, timeout = 3000) {
+      const start = Date.now();
+      while (!check()) {
+        if (Date.now() - start > timeout) {
+          return false;
+        }
+        await Zotero.Promise.delay(50);
+      }
+      return true;
+    }
+
+    it("re-sorts the list when the column it is sorted by is registered", async function () {
+      const pane = (Zotero.getMainWindow() as any).ZoteroPane;
+      await pane.collectionsView.selectLibrary(Zotero.Libraries.userLibraryID);
+      const view = pane.itemsView;
+      await view.waitForLoad();
+
+      // Titles in one order, Original Dates in another.
+      const [aardvark, badger, coypu] = await Promise.all(
+        [
+          ["Aardvark", "1900"],
+          ["Badger", "1800"],
+          ["Coypu", "1850"],
+        ].map(([title, originalDate]) =>
+          createItem("book", { title, originalDate }),
+        ),
+      );
+      const byDate = [badger, coypu, aardvark];
+      const byTitle = [aardvark, badger, coypu];
+      /** Whether the items are listed in this order (or its reverse). */
+      const listed = (items: Zotero.Item[], direction: number) => {
+        const rows = items.map((item) => view.getRowIndexByID(item.id));
+        if (rows.some((row) => row === undefined || row < 0)) {
+          return false;
+        }
+        return rows.every(
+          (row, i) => i === 0 || (row - rows[i - 1]) * direction > 0,
+        );
+      };
+
+      // Sort by the column, as the user had before restarting.
+      const dataKey = dataKeyFor("origonly");
+      const index = view
+        ._getColumns()
+        .findIndex((column: { dataKey: string }) => column.dataKey === dataKey);
+      view.toggleSort(index);
+      const direction = view.getSortDirection();
+      assert.isTrue(
+        await waitFor(() => listed(byDate, direction)),
+        "sorted by date",
+      );
+
+      // The state startup leaves behind: the list was loaded and sorted by
+      // title before the plugin's columns existed, but the saved sort column
+      // is ours.
+      const sortedColumn = view._sortedColumn;
+      view._sortedColumn = view
+        ._getColumns()
+        .find((column: { dataKey: string }) => column.dataKey === "title");
+      await view.sort();
+      view._sortedColumn = sortedColumn;
+      assert.equal(view.getSortField(), dataKey);
+      assert.isTrue(await waitFor(() => listed(byTitle, 1)), "listed by title");
+
+      // Registering a column sends this notification; the list should then
+      // be sorted by our column again.
+      (Zotero.ItemTreeManager as any).refreshColumns();
+      assert.isTrue(
+        await waitFor(() => listed(byDate, direction)),
+        "sorted by date again after the columns are refreshed",
+      );
+    });
+
     it("sorts a date column by date, using Zotero's own collation", async function () {
       const values = [
         "1850",
