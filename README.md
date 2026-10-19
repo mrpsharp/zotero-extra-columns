@@ -5,7 +5,8 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/mrpsharp/zotero-extra-columns/ci.yml?branch=main&style=flat-square)](https://github.com/mrpsharp/zotero-extra-columns/actions/workflows/ci.yml)
 
 A [Zotero](https://www.zotero.org) plugin that shows values stored in an item's
-**Extra** field as columns in the item list.
+**Extra** field as columns in the item list, along with any Zotero field that
+Zotero's own column picker does not offer.
 
 This allows you to keep custom data in Extra as `key: value` lines. This could be a date you finished reading something, a rating, a project name. Extra Columns makes those values visible and sortable
 alongside title etc
@@ -28,8 +29,12 @@ Zotero updates the plugin automatically when a new release is published.
 1. Open **Edit → Settings → Extra Columns** (**Zotero → Settings** on macOS).
 2. Click **Add column** and fill in:
    - **Column header** — what the column is called in the item list. Leave it
-     empty to use the Extra key itself.
-   - **Extra key** — the key to look for in Extra, for example `finished`.
+     empty to use the Extra key, or the field's name.
+   - **Source** — _Extra key_ to show a value from Extra, or one of the Zotero
+     fields listed beneath it (see [Zotero fields](#zotero-fields)).
+   - **Extra key** — for an Extra column, the key to look for in Extra, for
+     example `finished`. For a Zotero field, an optional fallback key (see
+     below).
    - **Type** — `Text`, `Date` or `Number`. This only affects sorting.
 3. Close settings, then right-click the item list's column headers (or click the
    column picker at the right-hand end of them) and switch on your new column.
@@ -65,13 +70,48 @@ Sorting follows the type you chose for the column:
 | Number | Numerically                   | Accepts a leading sign, decimals and exponent notation.                                                   |
 
 Values that cannot be read as a date or a number sort after those that can, and
-empty cells sort last of all.
+empty cells sort last of all. Date columns for a Zotero field accept any date
+Zotero itself understands, not just the formats above.
 
 Because Zotero has no comparison hook for plugin columns, date and number
 columns sort on a hidden key rather than on the text you see. One side effect:
 while a date or number column is the one you are sorting by, Zotero's
 type-to-jump matches that hidden key rather than the displayed value. Text
 columns are unaffected.
+
+## Zotero fields
+
+Zotero's column picker offers a fixed list of columns, which has not kept up
+with the fields Zotero knows about. Fields added in later Zotero versions, such
+as **Original Date**, **Original Place**, **Original Publisher** and **DOI**,
+appear in the item pane but cannot be added as columns. Extra Columns can show
+them.
+
+The **Source** list offers every Zotero field that does not already have a
+column of its own, under the names Zotero uses in your language. It is built
+from the running Zotero, so fields added by future Zotero updates appear
+automatically. Fields that Zotero already shows in one of its own columns are
+left out: a thesis's University appears in the Publisher column, for instance.
+
+- An item whose field is empty, or whose item type does not have the field,
+  shows an empty cell. At present, for example, only books and book sections
+  have an Original Date.
+- Where Zotero maps one field onto another, the column follows the mapping, as
+  Zotero's own columns do. An Original Date column shows a patent's Priority
+  Date.
+- A **Date** column shows the date exactly as entered, but sorts by the date
+  Zotero reads from it, using Zotero's own date parser. `March 1850`,
+  `12 March 1850` and `1850-03-12` are all understood.
+
+### Fallback Extra key
+
+A field column can name an Extra key to read whenever the field is empty or
+does not apply to the item's type. This is useful for Original Date. When Zotero
+added the field, it moved `original-date:` lines out of Extra on books and book
+sections, but other item types still keep it in Extra. An Original Date column
+with the fallback key `original-date` shows both.
+
+The fallback key is matched in the same way as any other Extra key (see below).
 
 ## A caveat about keys Zotero uses itself
 
@@ -89,7 +129,8 @@ different ways:
 You can still make a column for such a key, and it will show what is in Extra.
 The settings pane simply tells you which of the two applies, so the choice is a
 deliberate one. Citation warnings are highlighted, because those are the ones
-with consequences outside Zotero.
+with consequences outside Zotero. A field column's fallback key is not checked,
+since it is usually Zotero's own key for that field on purpose.
 
 A key can be both. `status` is a CSL variable _and_ a Zotero field on patent
 and standard items, so it gets the citation warning, the more serious of the
@@ -102,8 +143,10 @@ changes.
 
 ## Roadmap
 
-- **v0.1.0** — settings pane and read-only columns. _(current)_
-- **v0.2.0** — an optional item pane section with an edit box per configured
+- **v0.1.0** — settings pane and read-only columns.
+- **v0.2.0** — columns for Zotero fields that have no column of their own, with
+  an optional fallback to an Extra key. _(current)_
+- **v0.3.0** — an optional item pane section with an edit box per configured
   key, writing changes back into Extra without disturbing the other lines.
 
 ## Development
@@ -116,9 +159,15 @@ cp .env.example .env    # then point it at your Zotero binary and dev profile
 npm start               # launches Zotero with the plugin, and reloads on save
 npm run build           # produces .scaffold/build/extra-columns.xpi
 npm run test            # unit tests, in Node
-npm run test:zotero     # runs the smoke test inside Zotero
+npm run test:zotero     # runs the tests inside Zotero, in a throwaway profile
 npm run lint:fix
 ```
+
+When `npm start` or `npm run test:zotero` finishes, the scaffold shuts Zotero
+down. On macOS its default command kills **every** Zotero process, including
+any copy of Zotero you are using with your main profile. Set
+`ZOTERO_PLUGIN_KILL_COMMAND` in `.env` to something narrower (see
+`.env.example`), or quit your main Zotero first.
 
 The version lives in `package.json` alone. The build writes it into
 `addon/manifest.json`, and the release workflow uses it for the release and the
